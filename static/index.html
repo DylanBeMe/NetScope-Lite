@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en" data-theme="purple">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0d0718">
+  <title>NetScope Lite</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to dashboard</a>
+
+  <header class="topbar">
+    <a class="brand" href="#overview" aria-label="NetScope Lite home">
+      <img class="brand-logo" src="/static/favicon.svg" alt="">
+      <span class="brand-copy"><strong>NetScope Lite</strong><small>Local network monitor</small></span>
+    </a>
+    <div class="topbar-actions">
+      <button class="button button-secondary topbar-tool" id="history-button" type="button" aria-haspopup="dialog">History <span class="tool-count" id="history-count">0</span></button>
+      <button class="button button-secondary topbar-tool" id="alerts-button" type="button" aria-haspopup="dialog">Alerts <span class="tool-count alert-count" id="alert-count">0</span></button>
+      <button class="button button-secondary topbar-tool" id="automation-button" type="button" aria-haspopup="dialog">Automation</button>
+      <button class="button button-secondary topbar-tool" id="settings-button" type="button" aria-haspopup="dialog">Settings</button>
+      <button class="button button-secondary" id="theme-button" type="button" aria-haspopup="dialog">Theme</button>
+      <div class="export-menu">
+        <a class="button button-secondary is-disabled" id="export-button" href="/api/export" aria-disabled="true">Export JSON</a>
+        <a class="button button-secondary is-disabled compact-button" id="export-csv-button" href="/api/export?format=csv" aria-disabled="true" aria-label="Export CSV">CSV</a>
+      </div>
+      <div class="status-pill" id="app-status" role="status" aria-live="polite">Starting</div>
+    </div>
+  </header>
+
+  <nav class="jump-nav" aria-label="Dashboard sections">
+    <a href="#overview">Scan</a><a href="#network-context">Context</a><a href="#changes-panel">Changes</a><a href="#topology-panel">Topology</a><a href="#inventory-panel">Inventory</a>
+  </nav>
+
+  <main id="main-content" aria-busy="false">
+    <section class="hero-panel panel" id="overview" aria-labelledby="scan-heading">
+      <div class="hero-copy"><p class="eyebrow">OBSERVE YOUR ATTACHED NETWORK</p><h1 id="scan-heading">See what is connected, what changed, and what needs attention.</h1><p>Map local devices, retain scan history, classify known equipment, receive change alerts, and inspect service exposure from one private dashboard.</p></div>
+      <div class="safety-chip">Local private networks only</div>
+
+      <div class="scan-builder">
+        <section class="scan-step" aria-labelledby="profile-heading">
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <h2 id="profile-heading">Scan profile</h2>
+            <label class="field-control"><span>Profile</span><select id="profile-select"></select><small id="profile-help">Profiles control address coverage, service ports, and connection timeout.</small></label>
+          </div>
+        </section>
+
+        <section class="scan-step" aria-labelledby="scope-heading">
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <h2 id="scope-heading">Address scope</h2>
+            <label class="field-control"><span>Attached network</span><select id="target-select" aria-describedby="target-help"></select><small id="target-help">Choose a local segment or every usable address in an attached subnet.</small></label>
+            <label class="switch-row"><input id="scan-all-targets" type="checkbox"><span><strong>Scan all listed attached networks</strong><small>Runs each authorized local target sequentially and stores a separate history entry.</small></span></label>
+          </div>
+        </section>
+
+        <section class="scan-step" aria-labelledby="depth-heading">
+          <div class="step-number">3</div>
+          <div class="step-content">
+            <h2 id="depth-heading">Port depth</h2>
+            <div class="mode-cards" role="radiogroup" aria-label="Port scan depth">
+              <label class="mode-card"><input type="radio" name="port-mode" value="selected" checked><span><strong>Selected services</strong><small>Fast discovery using the service list below.</small></span></label>
+              <label class="mode-card mode-card-intensive"><input type="radio" name="port-mode" value="all"><span><strong>All TCP ports</strong><small>Ports 1–65,535 on every observed device.</small></span></label>
+            </div>
+
+            <fieldset class="service-fieldset">
+              <legend>Discovery services</legend>
+              <div class="port-group-bar" id="port-groups" aria-label="Port group presets">
+                <button class="text-button" type="button" data-port-group="common">Common</button><button class="text-button" type="button" data-port-group="web">Web</button><button class="text-button" type="button" data-port-group="remote">Remote admin</button><button class="text-button" type="button" data-port-group="files">File sharing</button><button class="text-button" type="button" data-port-group="databases">Databases</button><button class="text-button" type="button" data-port-group="printers">Printers</button>
+              </div>
+              <div class="inline-actions" aria-label="Service selection controls"><button class="text-button" type="button" id="select-all-ports">Select all</button><button class="text-button" type="button" id="clear-ports">Clear</button></div>
+              <div class="ports" id="ports"></div>
+              <label class="field-control compact-field"><span>Additional TCP ports</span><input id="custom-ports" type="text" inputmode="numeric" placeholder="Examples: 1883, 3000, 5000-5010" maxlength="300"><small>Comma-separated ports or ranges. Selected-service scans allow up to 1,024 unique ports.</small></label>
+            </fieldset>
+
+            <label class="acknowledgement" id="deep-scan-warning" hidden><input id="deep-scan-confirm" type="checkbox"><span>I am authorized to run this intensive scan. It can take a long time and create substantial local traffic.</span></label>
+          </div>
+        </section>
+
+        <section class="scan-action" aria-label="Start or cancel scan">
+          <div><strong id="scan-summary">Ready for a selected-service scan.</strong><span>Restricted to networks directly attached to this computer. Active address exclusions are applied before probing.</span></div>
+          <div class="scan-action-buttons"><button class="button button-danger" type="button" id="cancel-button" hidden>Cancel</button><button class="button button-primary scan-button" type="button" id="scan-button"><span class="button-label">Map network</span><span class="button-spinner" aria-hidden="true"></span></button></div>
+        </section>
+      </div>
+
+      <div class="scan-progress" id="scan-progress" hidden aria-hidden="true"><span id="scan-progress-bar"></span></div>
+      <div class="progress-meta" id="scan-progress-meta" hidden><span id="scan-progress-label">Preparing scan…</span><strong id="scan-progress-percent">0%</strong></div>
+      <p class="message" id="message" role="status" aria-live="polite">Ready to map an attached network.</p>
+    </section>
+
+    <section class="stats-grid" aria-label="Scan summary">
+      <article class="stat-card"><span>Observed devices</span><strong id="device-count">—</strong></article><article class="stat-card"><span>ICMP responsive</span><strong id="responsive-count">—</strong></article><article class="stat-card"><span>TCP-evidenced devices</span><strong id="tcp-count">—</strong></article><article class="stat-card"><span>Open services</span><strong id="service-count">—</strong></article><article class="stat-card"><span>Changes</span><strong id="change-count">—</strong></article><article class="stat-card"><span>Scan duration</span><strong id="duration">—</strong></article>
+    </section>
+
+    <section class="monitor-strip panel" aria-label="Monitoring status">
+      <div><span>Saved scans</span><strong id="monitor-history">0</strong></div><div><span>Known devices</span><strong id="monitor-devices">0</strong></div><div><span>Unreviewed alerts</span><strong id="monitor-alerts">0</strong></div><div><span>Active schedules</span><strong id="monitor-schedules">0</strong></div><button class="button button-secondary" id="notification-button" type="button">Enable desktop alerts</button>
+    </section>
+
+    <section class="context-grid" id="network-context" aria-label="Host and network context">
+      <article class="panel host-panel" aria-labelledby="host-name"><div class="section-heading"><div><p class="eyebrow">HOST PC</p><h2 id="host-name">Loading host details…</h2></div><span class="badge badge-host">THIS DEVICE</span></div><div class="host-grid" id="host-details"></div></article>
+      <article class="panel network-panel" aria-labelledby="network-heading"><div class="section-heading"><div><p class="eyebrow">NETWORK CONTEXT</p><h2 id="network-heading">Waiting for a scan</h2></div><span class="badge" id="network-interface-badge">NO BASELINE</span></div><div class="network-grid" id="network-details"></div><div class="evidence-summary" id="evidence-summary" aria-label="Discovery evidence"></div></article>
+    </section>
+
+    <section class="panel changes-panel" id="changes-panel" aria-labelledby="changes-heading"><div class="section-heading"><div><p class="eyebrow">CHANGE TRACKING</p><h2 id="changes-heading">Changes since the previous scan</h2></div><span class="badge" id="baseline-badge">NO BASELINE</span></div><div class="change-content" id="change-content"></div></section>
+
+    <section class="panel topology-panel" id="topology-panel" aria-labelledby="map-title">
+      <div class="section-heading map-heading"><div><p class="eyebrow">LOGICAL TOPOLOGY</p><h2 id="map-title">No scan yet</h2></div><div class="map-meta"><div class="map-controls" aria-label="Map zoom controls"><button class="icon-button" type="button" id="map-zoom-out" aria-label="Zoom out" disabled>−</button><button class="icon-button" type="button" id="map-fit" disabled>Fit</button><button class="icon-button" type="button" id="map-zoom-in" aria-label="Zoom in" disabled>+</button></div><span id="generated-at" class="muted"></span></div></div>
+      <div class="legend" aria-label="Map legend"><span><i class="legend-mark host-mark"></i>This PC</span><span><i class="legend-mark gateway-mark"></i>Gateway</span><span><i class="legend-mark active-mark"></i>ICMP responsive</span><span><i class="legend-mark service-mark"></i>TCP evidence</span><span><i class="legend-mark neighbor-mark"></i>Neighbor only</span></div>
+      <div class="topology-layout"><div class="topology-scroll" id="topology-scroll" tabindex="0" aria-label="Scrollable logical network map"><svg id="topology" viewBox="0 0 1200 760" role="group" aria-label="Interactive logical network topology"></svg><div class="empty-state" id="empty-map"><strong>Your computer is ready.</strong><span>Choose an attached network and run a scan.</span></div></div><aside class="inspector" id="node-inspector" aria-labelledby="inspector-heading"><p class="eyebrow">SELECTION</p><h3 id="inspector-heading">Network overview</h3><div id="inspector-content" class="inspector-content"><p class="muted">Select a device on the map or in the inventory to inspect its evidence and services.</p></div><button class="button button-secondary full-button" id="open-device-button" type="button" hidden>Open device record</button></aside></div>
+      <p class="map-note" id="map-note">The map shows logical relationships inferred from local interfaces, routes, neighbor entries, ICMP, and selected TCP services. It does not claim physical switch-port connections.</p>
+    </section>
+
+    <section class="panel inventory-panel" id="inventory-panel" aria-labelledby="inventory-heading">
+      <div class="section-heading inventory-heading"><div><p class="eyebrow">INVENTORY</p><h2 id="inventory-heading">Observed devices</h2></div><span class="muted" id="inventory-count" aria-live="polite">No scan data</span></div>
+      <div class="inventory-toolbar"><label class="search-control"><span class="sr-only">Search devices</span><input id="device-search" type="search" placeholder="Search name, IP, MAC, vendor, role, tag, evidence, or service" autocomplete="off"></label><label class="filter-control"><span class="sr-only">Filter devices</span><select id="device-filter"><option value="all">All devices</option><option value="host">This PC</option><option value="gateway">Gateway</option><option value="trusted">Trusted</option><option value="review">Needs review</option><option value="up">ICMP responsive</option><option value="service">TCP evidence</option><option value="neighbor">Neighbor only</option><option value="services">Has open services</option></select></label></div>
+      <div class="device-list" id="device-list"></div>
+    </section>
+  </main>
+
+  <footer><span>Use NetScope Lite only on networks you own or are authorized to administer.</span><span>All history and settings remain on this computer.</span></footer>
+
+  <dialog class="app-dialog" id="history-dialog" aria-labelledby="history-title"><section class="dialog-card dialog-card-wide"><header class="dialog-heading"><div><p class="eyebrow">SCAN HISTORY</p><h2 id="history-title">Snapshots and comparisons</h2></div><button class="icon-button dialog-close" type="button" aria-label="Close history">×</button></header><div class="dialog-toolbar"><label class="button button-secondary file-button">Import JSON<input id="history-import" type="file" accept="application/json,.json"></label><button class="button button-secondary" id="compare-history" type="button" disabled>Compare selected</button><button class="button button-secondary" id="print-history" type="button" disabled>Print report</button><button class="button button-secondary" id="refresh-history" type="button">Refresh</button></div><p class="muted">Select exactly two snapshots to compare devices and observed services.</p><div class="table-shell"><table class="data-table"><thead><tr><th scope="col">Compare</th><th scope="col">Scanned</th><th scope="col">Target</th><th scope="col">Source</th><th scope="col">Devices</th><th scope="col">Actions</th></tr></thead><tbody id="history-list"></tbody></table></div><div class="comparison-panel" id="history-comparison" hidden></div></section></dialog>
+
+  <dialog class="app-dialog" id="alerts-dialog" aria-labelledby="alerts-title">
+    <section class="dialog-card dialog-card-wide">
+      <header class="dialog-heading">
+        <div><p class="eyebrow">ALERT CENTER</p><h2 id="alerts-title">Alerts and desktop notifications</h2></div>
+        <button class="icon-button dialog-close" type="button" aria-label="Close alerts">×</button>
+      </header>
+
+      <section class="notification-guide" aria-labelledby="notification-guide-title">
+        <div>
+          <p class="eyebrow">DESKTOP NOTIFICATIONS</p>
+          <h3 id="notification-guide-title">Optional reminders for new network alerts</h3>
+          <p>Browser notifications are local to this browser and only appear while the dashboard is open. Permission is controlled by the browser and operating system. NetScope Lite does not send email, mobile push, or any notification data to an external service.</p>
+          <p class="notification-caveat">Notification history records delivery attempts made by this dashboard. A “shown” entry means the browser accepted the notification request; the operating system may still suppress it through Focus, Do Not Disturb, or notification settings.</p>
+        </div>
+        <div class="notification-guide-actions">
+          <span class="badge" id="notification-permission-status">Checking permission</span>
+          <button class="button button-primary" id="notification-dialog-button" type="button">Enable browser notifications</button>
+        </div>
+      </section>
+
+      <div class="alert-center-grid">
+        <section class="subpanel alert-center-section" aria-labelledby="network-alerts-heading">
+          <div class="subpanel-heading">
+            <div><h3 id="network-alerts-heading">Network alerts</h3><p>Changes detected by saved scans. Acknowledging an alert keeps it in history.</p></div>
+            <div class="dialog-toolbar compact-toolbar">
+              <label class="filter-control"><span class="sr-only">Alert filter</span><select id="alert-filter"><option value="open">Unacknowledged</option><option value="all">All alerts</option></select></label>
+              <button class="button button-secondary" id="acknowledge-all-alerts" type="button">Acknowledge all</button>
+              <button class="button button-secondary" id="refresh-alerts" type="button">Refresh</button>
+            </div>
+          </div>
+          <div class="alert-list" id="alert-list"></div>
+        </section>
+
+        <section class="subpanel alert-center-section" aria-labelledby="notification-history-heading">
+          <div class="subpanel-heading">
+            <div><h3 id="notification-history-heading">Notification history</h3><p>Local browser notification attempts, newest first.</p></div>
+            <div class="dialog-toolbar compact-toolbar">
+              <button class="button button-secondary" id="refresh-notification-history" type="button">Refresh</button>
+              <button class="button button-danger" id="clear-notification-history" type="button">Clear history</button>
+            </div>
+          </div>
+          <div class="notification-history-list" id="notification-history-list" aria-live="polite"></div>
+        </section>
+      </div>
+    </section>
+  </dialog>
+
+  <dialog class="app-dialog" id="automation-dialog" aria-labelledby="automation-title"><section class="dialog-card dialog-card-wide"><header class="dialog-heading"><div><p class="eyebrow">AUTOMATION</p><h2 id="automation-title">Profiles and scheduled scans</h2></div><button class="icon-button dialog-close" type="button" aria-label="Close automation">×</button></header><div class="automation-grid"><section class="subpanel"><h3>Scheduled scans</h3><form id="schedule-form" class="stack-form"><label>Name<input id="schedule-name" required maxlength="80" placeholder="Evening network check"></label><label>Targets<select id="schedule-targets" multiple size="4" required></select></label><label>Profile<select id="schedule-profile" required></select></label><label>Repeat<select id="schedule-interval"><option value="15">Every 15 minutes</option><option value="60" selected>Every hour</option><option value="360">Every 6 hours</option><option value="720">Every 12 hours</option><option value="1440">Daily</option><option value="10080">Weekly</option></select></label><label class="acknowledgement compact-ack" id="schedule-intensive-wrap" hidden><input id="schedule-intensive" type="checkbox"><span>I authorize recurring intensive all-port scans.</span></label><button class="button button-primary" type="submit">Add schedule</button></form><div class="stack-list" id="schedule-list"></div></section><section class="subpanel"><h3>Custom scan profiles</h3><form id="profile-form" class="stack-form"><label>Name<input id="profile-name" required maxlength="60" placeholder="Office services"></label><label>Address scope<select id="profile-address-mode"><option value="standard">Local segment</option><option value="extended">Full attached subnet</option></select></label><label>Port mode<select id="profile-port-mode"><option value="selected">Selected ports</option><option value="all">All TCP ports</option></select></label><label>Ports<input id="profile-ports" type="text" placeholder="22, 80, 443, 8000-8010"></label><label>Timeout<input id="profile-timeout" type="number" min="50" max="5000" value="260"> ms</label><button class="button button-primary" type="submit">Save profile</button></form><div class="stack-list" id="profile-list"></div></section></div></section></dialog>
+
+  <dialog class="app-dialog" id="settings-dialog" aria-labelledby="settings-title">
+    <section class="dialog-card dialog-card-wide">
+      <header class="dialog-heading">
+        <div><p class="eyebrow">SETTINGS</p><h2 id="settings-title">Monitoring preferences</h2></div>
+        <button class="icon-button dialog-close" type="button" aria-label="Close settings">×</button>
+      </header>
+      <div class="settings-grid">
+        <section class="subpanel settings-section-wide exclusion-manager" aria-labelledby="exclusions-heading">
+          <div class="subpanel-heading">
+            <div><h3 id="exclusions-heading">Scan exclusions</h3><p>Skip specific private IPv4 addresses, attached subnets, or MAC addresses during discovery and service checks.</p></div>
+            <span class="badge" id="exclusion-count">0 active</span>
+          </div>
+          <form id="exclusion-form" class="exclusion-composer">
+            <label class="field-control"><span>Match type</span><select id="exclusion-kind"><option value="ip">IPv4 address</option><option value="cidr">IPv4 network</option><option value="mac">MAC address</option></select></label>
+            <label class="field-control exclusion-value-field"><span>Value</span><input id="exclusion-value" required placeholder="192.168.1.50" aria-describedby="exclusion-kind-help"><small id="exclusion-kind-help">Enter one private or link-local IPv4 address.</small></label>
+            <label class="field-control"><span>Optional label</span><input id="exclusion-label" maxlength="100" placeholder="Managed appliance"></label>
+            <button class="button button-primary" type="submit">Add exclusion</button>
+          </form>
+          <div class="exclusion-list" id="exclusion-list"></div>
+        </section>
+
+        <section class="subpanel"><h3>Theme scheduling</h3><label class="switch-row"><input id="theme-auto" type="checkbox"><span><strong>Follow automatic theme</strong><small>Use the system appearance or a dark-time window.</small></span></label><div class="two-column-fields"><label>Day theme<select id="theme-day"><option value="light">Light</option><option value="purple">Purple</option><option value="custom">Custom</option></select></label><label>Night theme<select id="theme-night"><option value="purple">Purple</option><option value="midnight">Midnight</option><option value="contrast">High contrast</option><option value="custom">Custom</option></select></label><label>Night starts<input id="theme-night-start" type="time" value="19:00"></label><label>Day starts<input id="theme-day-start" type="time" value="07:00"></label></div><button class="button button-secondary" id="save-theme-schedule" type="button">Save theme schedule</button></section>
+        <section class="subpanel"><h3>Password protection</h3><p class="muted">Optional protection applies to the local API and dashboard data. The server remains bound to loopback only.</p><form id="password-form" class="stack-form"><label>Current password<input id="current-password" type="password" autocomplete="current-password"></label><label>New password<input id="new-password" type="password" minlength="8" maxlength="200" autocomplete="new-password" placeholder="Leave empty to disable"></label><button class="button button-primary" type="submit">Update password</button></form></section>
+        <section class="subpanel settings-section-wide"><h3>Keyboard shortcuts</h3><p class="muted">Shortcuts are disabled while you type in a form field.</p><div class="shortcut-grid"><span><kbd>S</kbd> Start scan</span><span><kbd>/</kbd> Search devices</span><span><kbd>H</kbd> History</span><span><kbd>A</kbd> Alerts</span><span><kbd>T</kbd> Theme</span><span><kbd>Esc</kbd> Close dialogs</span></div></section>
+      </div>
+    </section>
+  </dialog>
+
+  <dialog class="app-dialog" id="device-dialog" aria-labelledby="device-dialog-title"><section class="dialog-card dialog-card-wide"><header class="dialog-heading"><div><p class="eyebrow">DEVICE RECORD</p><h2 id="device-dialog-title">Device details</h2></div><button class="icon-button dialog-close" type="button" aria-label="Close device record">×</button></header><div id="device-dialog-content"></div></section></dialog>
+
+  <dialog class="app-dialog login-dialog" id="login-dialog" aria-labelledby="login-title"><form id="login-form" class="dialog-card dialog-card-small"><div class="login-brand"><img src="/static/favicon.svg" alt=""><div><p class="eyebrow">LOCAL ACCESS</p><h2 id="login-title">Unlock NetScope Lite</h2></div></div><p>Enter the local dashboard password to view stored network data.</p><label class="field-control"><span>Password</span><input id="login-password" type="password" autocomplete="current-password" required autofocus></label><p class="message" id="login-message" role="alert" hidden></p><button class="button button-primary full-button" type="submit">Unlock dashboard</button></form></dialog>
+
+  <dialog class="theme-dialog" id="theme-dialog" aria-labelledby="theme-title"><form method="dialog" class="theme-card"><div class="theme-card-heading"><div><p class="eyebrow">APPEARANCE</p><h2 id="theme-title">Choose a theme</h2></div><button class="icon-button" value="cancel" aria-label="Close theme settings">×</button></div><div class="theme-presets" id="theme-presets"><label><input type="radio" name="theme" value="purple"><span><i class="swatch swatch-purple"></i><strong>Purple</strong><small>Default</small></span></label><label><input type="radio" name="theme" value="midnight"><span><i class="swatch swatch-midnight"></i><strong>Midnight</strong><small>Cool dark</small></span></label><label><input type="radio" name="theme" value="light"><span><i class="swatch swatch-light"></i><strong>Light</strong><small>Bright workspace</small></span></label><label><input type="radio" name="theme" value="contrast"><span><i class="swatch swatch-contrast"></i><strong>Contrast</strong><small>Maximum clarity</small></span></label><label><input type="radio" name="theme" value="custom"><span><i class="swatch swatch-custom"></i><strong>Custom</strong><small>Your palette</small></span></label></div><fieldset class="custom-theme" id="custom-theme-fields" disabled><legend>Custom palette</legend><label>Primary <input type="color" id="theme-primary" value="#8b5cf6"></label><label>Accent <input type="color" id="theme-accent" value="#c084fc"></label><label>Background <input type="color" id="theme-background" value="#0d0718"></label><label>Surface <input type="color" id="theme-surface" value="#181126"></label><label>Text <input type="color" id="theme-text" value="#f8f5ff"></label><p class="custom-contrast" id="custom-contrast" role="status" aria-live="polite"></p></fieldset><div class="theme-actions"><button class="button button-secondary" type="button" id="theme-reset">Reset custom</button><button class="button button-primary" value="default">Done</button></div></form></dialog>
+
+  <script src="/static/app.js" defer></script>
+</body>
+</html>

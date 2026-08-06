@@ -1,0 +1,30 @@
+services:
+  netscope:
+    build:
+      context: .
+    image: netscope-lite:local
+    container_name: netscope-lite
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8787:8787"
+    environment:
+      NETSCOPE_DATA_DIR: /data
+      NETSCOPE_HOST: 0.0.0.0
+      NETSCOPE_PORT: 8787
+      NETSCOPE_ALLOW_NON_LOOPBACK: "1"
+      # Set NETSCOPE_PASSWORD in a local .env file to enable first-run login.
+      NETSCOPE_PASSWORD: ${NETSCOPE_PASSWORD:-}
+    volumes:
+      - netscope-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_RAW
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  netscope-data:

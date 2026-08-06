@@ -1,0 +1,87 @@
+name: Docker build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - Dockerfile
+      - .dockerignore
+      - compose.yaml
+      - compose.host-network.yaml
+      - package.json
+      - server.js
+      - src/**
+      - static/**
+      - .github/workflows/docker.yml
+  pull_request:
+    paths:
+      - Dockerfile
+      - .dockerignore
+      - compose.yaml
+      - compose.host-network.yaml
+      - package.json
+      - server.js
+      - src/**
+      - static/**
+      - .github/workflows/docker.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-smoke-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build image for smoke test
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          load: true
+          push: false
+          tags: netscope-lite:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Start container
+        run: |
+          docker run --detach --name netscope-lite-ci \
+            --publish 127.0.0.1:8787:8787 \
+            --read-only \
+            --tmpfs /tmp:rw,noexec,nosuid,size=16m \
+            --cap-drop ALL \
+            --cap-add NET_RAW \
+            --security-opt no-new-privileges:true \
+            --env NETSCOPE_HOST=0.0.0.0 \
+            --env NETSCOPE_ALLOW_NON_LOOPBACK=1 \
+            netscope-lite:ci
+
+      - name: Smoke-test health endpoint
+        shell: bash
+        run: |
+          for attempt in {1..30}; do
+            if curl --fail --silent --show-error http://127.0.0.1:8787/healthz >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs netscope-lite-ci
+          exit 1
+
+      - name: Show container logs on failure
+        if: failure()
+        run: docker logs netscope-lite-ci || true
+
+      - name: Stop container
+        if: always()
+        run: docker rm --force netscope-lite-ci || true

@@ -1,0 +1,23 @@
+{
+  "name": "netscope-lite",
+  "private": true,
+  "type": "module",
+  "description": "Local network mapper, inventory, history, and change monitor built with Node.js, JavaScript, HTML, CSS, SQLite, and Drizzle ORM.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "launch": "node server.js --open",
+    "check:syntax": "node --check server.js && node --check src/auth.js && node --check src/identity.js && node --check src/memory-store.js && node --check src/profiles.js && node --check src/safety.js && node --check src/scan-manager.js && node --check src/scanner.js && node --check src/wol.js && node --check src/db/schema.js && node --check src/db/migrations.js && node --check src/db/store.js && node --check static/app.js",
+    "test": "node --test",
+    "check": "npm run check:syntax && npm test",
+    "docker:build": "docker build --tag netscope-lite:local .",
+    "docker:up": "docker compose up --build",
+    "docker:up:host": "docker compose -f compose.host-network.yaml up --build"
+  },
+  "dependencies": {
+    "better-sqlite3": "13.0.3",
+    "drizzle-orm": "0.45.2"
+  }
+}
