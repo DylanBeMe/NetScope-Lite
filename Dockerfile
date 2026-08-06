@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-FROM node:22-bookworm-slim AS dependencies
+FROM node:25-bookworm-slim AS dependencies
 WORKDIR /app
 
 # better-sqlite3 normally downloads a prebuilt binary. These tools provide a
@@ -13,7 +13,7 @@ COPY package.json ./
 RUN npm install --omit=dev --no-audit --no-fund \
     && npm cache clean --force
 
-FROM node:22-bookworm-slim AS runtime
+FROM node:25-bookworm-slim AS runtime
 WORKDIR /app
 
 RUN apt-get update \
