@@ -17,7 +17,7 @@ export const MAX_REQUEST_BYTES = 256 * 1024;
 export const MAX_IMPORT_BYTES = 64 * 1024 * 1024;
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const STATIC_ROOT = path.join(ROOT, "static");
-const ALLOWED_HOSTS = new Set(["127.0.0.1", "localhost", "::1"]);
+const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "::1"]);
 
 export function defaultDataDirectory() {
   if (process.env.NETSCOPE_DATA_DIR) return process.env.NETSCOPE_DATA_DIR;
@@ -86,8 +86,17 @@ function requestHost(request) {
   return raw.split(":", 1)[0];
 }
 
-function hostIsAllowed(request) {
-  return ALLOWED_HOSTS.has(requestHost(request));
+export function requestAllowedHosts(value = process.env.NETSCOPE_ALLOWED_HOSTS) {
+  const hosts = new Set(LOOPBACK_HOSTS);
+  for (const entry of String(value ?? "").split(",")) {
+    const host = entry.trim().toLowerCase();
+    if (host) hosts.add(host);
+  }
+  return hosts;
+}
+
+function hostIsAllowed(request, allowedHosts) {
+  return allowedHosts.has(requestHost(request));
 }
 
 function staticFilePath(urlPath) {
@@ -373,10 +382,11 @@ export function createRequestHandler({
   scanManager = new ScanManager({ scanner, store, state, logger }),
   authManager = new AuthManager({ store }),
   wakeFn = sendWakeOnLan,
+  allowedHosts = requestAllowedHosts(),
 } = {}) {
   return async function handleRequest(request, response) {
     applySecurityHeaders(response);
-    if (!hostIsAllowed(request)) return sendJson(response, { error: "Invalid Host header." }, 400);
+    if (!hostIsAllowed(request, allowedHosts)) return sendJson(response, { error: "Invalid Host header." }, 400);
     try {
       let requestUrl;
       try {
@@ -629,7 +639,7 @@ function parseArguments(argv) {
   if (result.host === "localhost") result.host = "127.0.0.1";
   if (!Number.isInteger(result.port) || result.port < 0 || result.port > 65535) throw new Error("Port must be between 0 and 65535.");
   const containerBridgeBind = result.host === "0.0.0.0" && process.env.NETSCOPE_ALLOW_NON_LOOPBACK === "1";
-  if (!ALLOWED_HOSTS.has(result.host) && !containerBridgeBind) {
+  if (!LOOPBACK_HOSTS.has(result.host) && !containerBridgeBind) {
     throw new Error("NetScope Lite only binds to loopback unless NETSCOPE_ALLOW_NON_LOOPBACK=1 explicitly permits a container bridge bind.");
   }
   return result;

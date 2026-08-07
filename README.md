@@ -95,6 +95,20 @@ Open `http://127.0.0.1:8787`.
 
 Bridge mode publishes the dashboard only on the host loopback interface. It is suitable for validating the container and observing its Docker bridge network, but the container does not share the host's physical network interfaces.
 
+### LAN or reverse-proxy access
+
+Host-header validation accepts loopback hosts by default. To open the dashboard through a LAN IP, DNS name, or reverse-proxy hostname, add the exact browser-facing hostnames or IP addresses to `NETSCOPE_ALLOWED_HOSTS`. Values are comma-separated, case-insensitive, and must not include a URL scheme or port.
+
+For example, if the Docker host is `192.168.1.50` and you browse to `http://192.168.1.50:8787`, set:
+
+```dotenv
+NETSCOPE_ALLOWED_HOSTS=192.168.1.50
+```
+
+The Compose files pass this value through from `.env`. Their default port publishing is still loopback-only. To intentionally expose bridge mode to the LAN, change the port mapping from `127.0.0.1:8787:8787` to `8787:8787` (or bind it to a specific host interface), and enable `NETSCOPE_PASSWORD`. Use a host firewall to limit which clients can reach the dashboard.
+
+`NETSCOPE_ALLOWED_HOSTS` only controls incoming HTTP Host-header validation. It does not change the server bind address and does not replace `NETSCOPE_ALLOW_NON_LOOPBACK`. The built-in loopback hosts (`127.0.0.1`, `localhost`, and `::1`) remain allowed.
+
 ### Linux host-network mode
 
 Use host networking when the container must inspect the Linux host's attached LAN interfaces:
@@ -295,8 +309,11 @@ Shortcuts are disabled while typing in a form field or while any dialog is open.
 | `NETSCOPE_PORT` | HTTP port | `8787` |
 | `NETSCOPE_PASSWORD` | Optional first-run dashboard password | Disabled |
 | `NETSCOPE_ALLOW_NON_LOOPBACK` | Explicitly allow `0.0.0.0` for container bridge mode | Disabled |
+| `NETSCOPE_ALLOWED_HOSTS` | Comma-separated exact hostnames/IPs accepted by Host-header validation, in addition to loopback hosts | Empty |
 
-`NETSCOPE_ALLOW_NON_LOOPBACK=1` only permits the `0.0.0.0` bind used inside a container. Host-header validation remains restricted to local hostnames and addresses. Publish the container port to `127.0.0.1`, not every host interface.
+`NETSCOPE_ALLOWED_HOSTS` is additive: `127.0.0.1`, `localhost`, and `::1` always remain allowed. Entries are normalized to lowercase and should contain only the hostname or IP address, without a scheme or port. For IPv6, use the bare address (for example `fd00::10`, not `[fd00::10]:8787`).
+
+`NETSCOPE_ALLOW_NON_LOOPBACK=1` only permits the `0.0.0.0` bind used inside a container. It is independent from Host-header validation. The default Compose configuration still publishes the container port to `127.0.0.1`; exposing it on a LAN requires an explicit port-publishing change and should be paired with `NETSCOPE_PASSWORD` and appropriate firewall rules.
 
 ## Development
 
@@ -408,8 +425,9 @@ The notification history in the Alert Center shows whether the dashboard request
 ## Privacy and security
 
 - The native server binds to loopback.
-- Container bridge mode requires an explicit non-loopback bind flag inside the container and should be published only to host loopback.
-- Host-header validation, restrictive security headers, request-size limits, and path-traversal protection are enabled.
+- Container bridge mode requires an explicit non-loopback bind flag inside the container and publishes only to host loopback by default.
+- Host-header validation allows loopback hosts plus exact names/IPs explicitly added with `NETSCOPE_ALLOWED_HOSTS`; LAN exposure should also use authentication and firewall restrictions.
+- Restrictive security headers, request-size limits, and path-traversal protection are enabled.
 - Network inventory, alerts, notification history, schedules, and settings stay in the local SQLite database.
 - The application does not include telemetry or cloud synchronization.
 

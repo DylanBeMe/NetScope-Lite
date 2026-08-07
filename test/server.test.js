@@ -1,7 +1,7 @@
 import test, { after, before, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import http from "node:http";
-import { createServer, MAX_REQUEST_BYTES } from "../server.js";
+import { createServer, MAX_REQUEST_BYTES, requestAllowedHosts } from "../server.js";
 import { MemoryStore } from "../src/memory-store.js";
 
 const appState = { scanRunning: false };
@@ -58,9 +58,9 @@ beforeEach(() => {
 const request = (pathname, options = {}) => fetch(`${baseUrl}${pathname}`, options);
 const jsonPost = (pathname, payload, method = "POST") => request(pathname, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
 
-function requestWithHost(pathname, host) {
+function requestWithHost(pathname, host, targetServer = server) {
   return new Promise((resolve, reject) => {
-    const outgoing = http.request({ host: "127.0.0.1", port: server.address().port, path: pathname, headers: { Host: host } }, (response) => {
+    const outgoing = http.request({ host: "127.0.0.1", port: targetServer.address().port, path: pathname, headers: { Host: host } }, (response) => {
       const chunks = [];
       response.on("data", (chunk) => chunks.push(chunk));
       response.on("end", () => resolve({ response, body: Buffer.concat(chunks).toString("utf8") }));
@@ -111,6 +111,24 @@ test("invalid Host headers are rejected", async () => {
   const { response, body } = await requestWithHost("/healthz", "attacker.example");
   assert.equal(response.statusCode, 400);
   assert.match(JSON.parse(body).error, /Invalid Host/);
+});
+
+test("configured Host headers are accepted without removing loopback defaults", async () => {
+  const configuredServer = createServer({
+    scanner,
+    store: new MemoryStore(),
+    logger,
+    allowedHosts: requestAllowedHosts("Dashboard.Example, 192.168.1.50"),
+  });
+  await new Promise((resolve) => configuredServer.listen(0, "127.0.0.1", resolve));
+  try {
+    const configured = await requestWithHost("/healthz", "dashboard.example:8787", configuredServer);
+    assert.equal(configured.response.statusCode, 200);
+    const loopback = await requestWithHost("/healthz", "localhost:8787", configuredServer);
+    assert.equal(loopback.response.statusCode, 200);
+  } finally {
+    await new Promise((resolve) => configuredServer.close(resolve));
+  }
 });
 
 test("status and scan-state payloads are coherent", async () => {
