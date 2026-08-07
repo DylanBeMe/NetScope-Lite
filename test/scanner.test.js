@@ -207,10 +207,11 @@ test("ICMP and TCP discovery queues begin concurrently", async () => {
     dnsServersFn: () => [],
     hostInventoryFn: () => ({ hostname: "host", interfaces: [interfaceRecord], suggested_targets: [] }),
   });
-  const result = await Promise.race([
-    scan,
-    new Promise((_, reject) => setTimeout(() => reject(new Error("Discovery queues did not overlap.")), 250)),
+  await Promise.race([
+    bothStarted,
+    new Promise((_, reject) => setImmediate(() => reject(new Error("Discovery queues did not overlap.")))),
   ]);
+  const result = await scan;
   assert.deepEqual([...started].sort(), ["icmp", "tcp"]);
   assert.equal(result.devices[0].is_host, true);
 });

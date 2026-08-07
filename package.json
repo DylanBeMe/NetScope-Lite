@@ -17,7 +17,7 @@
     "docker:up:host": "docker compose -f compose.host-network.yaml up --build"
   },
   "dependencies": {
-    "better-sqlite3": "13.0.3",
+    "better-sqlite3": "12.9.0",
     "drizzle-orm": "0.45.2"
   }
 }
