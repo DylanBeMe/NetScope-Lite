@@ -53,8 +53,8 @@ function normalizedMac(value) {
 
 export function interfaceKind(interfaceName) {
   const name = String(interfaceName ?? "").toLowerCase();
-  if (/^(docker|br-|veth|virbr|vmnet|vbox|vethernet|utun|tun|tap|wg|tailscale|zt)/.test(name)) return "virtual";
-  if (/(wi-?fi|wireless|wlan|airport)/.test(name)) return "wireless";
+  if (/^(docker|br-|veth|virbr|vmnet|vbox|vethernet|utun|tun|tap|wg|tailscale|zt|cni|flannel|cilium|kube|podman|lxc|lxd|incus)/.test(name)) return "virtual";
+  if (/(wi-?fi|wireless|wlan|airport)|^wl/.test(name)) return "wireless";
   if (/^(eth|enp|eno|ens|em\d|lan)|ethernet/.test(name)) return "ethernet";
   if (/^(ppp|wwan|cellular)/.test(name)) return "wide-area";
   return "network";
@@ -101,7 +101,7 @@ export function attachedNetworks(interfaces = interfaceInventory()) {
   return networks;
 }
 
-export function targetOptions(interfaces = interfaceInventory()) {
+export function targetOptions(interfaces = interfaceInventory(), { includeVirtual = process.env.NETSCOPE_INCLUDE_VIRTUAL_TARGETS === "1" } = {}) {
   const options = [];
   const seen = new Set();
   const add = (network, item, scope) => {
@@ -120,6 +120,10 @@ export function targetOptions(interfaces = interfaceInventory()) {
   };
 
   for (const item of interfaces) {
+    // Host-network containers can see Docker/Podman/CNI bridge interfaces in
+    // addition to the host's real LAN interfaces. Do not offer those virtual
+    // networks as normal scan targets unless the operator explicitly opts in.
+    if (item.kind === "virtual" && !includeVirtual) continue;
     try {
       const attached = parseIPv4Network(item.network);
       if (!isAllowedLocalNetwork(attached)) continue;
@@ -134,8 +138,8 @@ export function targetOptions(interfaces = interfaceInventory()) {
   return options;
 }
 
-export function suggestedTargets(interfaces = interfaceInventory()) {
-  return targetOptions(interfaces).map((option) => option.cidr);
+export function suggestedTargets(interfaces = interfaceInventory(), options) {
+  return targetOptions(interfaces, options).map((option) => option.cidr);
 }
 
 function diskInventory() {

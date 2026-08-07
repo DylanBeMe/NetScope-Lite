@@ -638,9 +638,9 @@ function parseArguments(argv) {
   result.host = String(result.host).trim().toLowerCase();
   if (result.host === "localhost") result.host = "127.0.0.1";
   if (!Number.isInteger(result.port) || result.port < 0 || result.port > 65535) throw new Error("Port must be between 0 and 65535.");
-  const containerBridgeBind = result.host === "0.0.0.0" && process.env.NETSCOPE_ALLOW_NON_LOOPBACK === "1";
-  if (!LOOPBACK_HOSTS.has(result.host) && !containerBridgeBind) {
-    throw new Error("NetScope Lite only binds to loopback unless NETSCOPE_ALLOW_NON_LOOPBACK=1 explicitly permits a container bridge bind.");
+  const explicitlyAllowedNonLoopbackBind = result.host === "0.0.0.0" && process.env.NETSCOPE_ALLOW_NON_LOOPBACK === "1";
+  if (!LOOPBACK_HOSTS.has(result.host) && !explicitlyAllowedNonLoopbackBind) {
+    throw new Error("NetScope Lite only binds to loopback unless NETSCOPE_ALLOW_NON_LOOPBACK=1 explicitly permits a 0.0.0.0 bind.");
   }
   return result;
 }
@@ -660,7 +660,7 @@ async function main() {
     return;
   }
   if (options.help) {
-    console.log("Usage: node server.js [--host 127.0.0.1] [--port 8787] [--open]\nContainer bridge mode: NETSCOPE_ALLOW_NON_LOOPBACK=1 node server.js --host 0.0.0.0");
+    console.log("Usage: node server.js [--host 127.0.0.1] [--port 8787] [--open]\nContainer LAN bind: NETSCOPE_ALLOW_NON_LOOPBACK=1 node server.js --host 0.0.0.0");
     return;
   }
   let store;

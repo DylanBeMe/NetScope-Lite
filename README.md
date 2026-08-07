@@ -118,7 +118,11 @@ cp .env.example .env
 docker compose -f compose.host-network.yaml up --build -d
 ```
 
-The service still binds to `127.0.0.1:8787`, so the dashboard remains local to the host. Docker host networking is Linux-specific; behavior on Docker Desktop varies and may not expose the same interface and neighbor context as a native installation.
+The service still binds to `127.0.0.1:8787` by default, so the dashboard remains local to the host. To intentionally expose host-network mode to your LAN, set `NETSCOPE_HOST=0.0.0.0`, `NETSCOPE_ALLOW_NON_LOOPBACK=1`, `NETSCOPE_ALLOWED_HOSTS` to the host IP/name clients will use, and enable `NETSCOPE_PASSWORD` in `.env`. The host-network Compose file reads these values without requiring edits.
+
+Host-network mode can expose Docker, Podman, CNI, VPN, and other virtual interfaces alongside the real LAN. NetScope Lite hides recognized virtual interfaces from scan targets by default so **Scan all targets** does not spend its time enumerating container networks. Set `NETSCOPE_INCLUDE_VIRTUAL_TARGETS=1` only when you intentionally want those networks listed and scannable. Virtual interfaces remain visible in the host inventory.
+
+Docker host networking is Linux-specific; behavior on Docker Desktop varies and may not expose the same interface and neighbor context as a native installation.
 
 ### Published image
 
@@ -308,8 +312,9 @@ Shortcuts are disabled while typing in a form field or while any dialog is open.
 | `NETSCOPE_HOST` | HTTP bind address | `127.0.0.1` |
 | `NETSCOPE_PORT` | HTTP port | `8787` |
 | `NETSCOPE_PASSWORD` | Optional first-run dashboard password | Disabled |
-| `NETSCOPE_ALLOW_NON_LOOPBACK` | Explicitly allow `0.0.0.0` for container bridge mode | Disabled |
+| `NETSCOPE_ALLOW_NON_LOOPBACK` | Explicitly allow a container to bind the dashboard to `0.0.0.0` | Disabled |
 | `NETSCOPE_ALLOWED_HOSTS` | Comma-separated exact hostnames/IPs accepted by Host-header validation, in addition to loopback hosts | Empty |
+| `NETSCOPE_INCLUDE_VIRTUAL_TARGETS` | Include recognized Docker/Podman/CNI/VPN virtual interfaces in scan targets | `0` |
 
 `NETSCOPE_ALLOWED_HOSTS` is additive: `127.0.0.1`, `localhost`, and `::1` always remain allowed. Entries are normalized to lowercase and should contain only the hostname or IP address, without a scheme or port. For IPv6, use the bare address (for example `fd00::10`, not `[fd00::10]:8787`).
 
@@ -408,6 +413,8 @@ Then remove `node_modules` and run `npm install` again.
 
 That is expected in bridge mode. Use the Linux host-network Compose file or run NetScope Lite natively when accurate host interface, route, and neighbor context is required.
 
+In Linux host-network mode, the host inventory will also contain Docker/Podman/CNI virtual interfaces. Those are intentionally excluded from scan targets by default. If the target selector still shows only a container subnet, verify the container is really using host networking with `docker inspect netscope-lite --format '{{.HostConfig.NetworkMode}}'` and confirm the container can see the host LAN interface with `docker exec netscope-lite ip -br -4 addr`.
+
 ### Ping results are unavailable
 
 The scanner still uses neighbor and TCP evidence. On Linux containers, retain the `NET_RAW` capability used by the provided Compose files.
@@ -425,7 +432,7 @@ The notification history in the Alert Center shows whether the dashboard request
 ## Privacy and security
 
 - The native server binds to loopback.
-- Container bridge mode requires an explicit non-loopback bind flag inside the container and publishes only to host loopback by default.
+- A `0.0.0.0` container bind requires the explicit non-loopback flag; the default bridge Compose file still publishes only to host loopback.
 - Host-header validation allows loopback hosts plus exact names/IPs explicitly added with `NETSCOPE_ALLOWED_HOSTS`; LAN exposure should also use authentication and firewall restrictions.
 - Restrictive security headers, request-size limits, and path-traversal protection are enabled.
 - Network inventory, alerts, notification history, schedules, and settings stay in the local SQLite database.

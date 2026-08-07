@@ -368,7 +368,8 @@ function renderHost(host) {
     option.dataset.usableAddresses = String(target.usable_address_count ?? target.address_count ?? "selected");
     const scope = target.scope === "full-subnet" ? "full attached subnet" : "local segment";
     const count = target.usable_address_count == null ? "" : ` · ${target.usable_address_count} usable`;
-    option.textContent = `${target.cidr} · ${scope}${count}`;
+    const link = target.interface ? ` · ${target.interface}${target.kind ? ` (${target.kind})` : ""}` : "";
+    option.textContent = `${target.cidr}${link} · ${scope}${count}`;
     select.append(option);
   }
   if (selected && [...select.options].some((option) => option.value === selected)) select.value = selected;
@@ -1867,7 +1868,12 @@ function populateScheduleTargets() {
   const targets = state.targetOptions.filter((target) => targetSupportsAddressMode(target, desiredMode));
   select.replaceChildren();
   for (const target of targets) {
-    const option = document.createElement("option"); option.value = target.cidr; option.textContent = `${target.cidr} · ${target.scope === "full-subnet" ? "full subnet" : "local segment"}`; option.selected = previous.has(option.value); select.append(option);
+    const option = document.createElement("option");
+    option.value = target.cidr;
+    const link = target.interface ? ` · ${target.interface}${target.kind ? ` (${target.kind})` : ""}` : "";
+    option.textContent = `${target.cidr}${link} · ${target.scope === "full-subnet" ? "full subnet" : "local segment"}`;
+    option.selected = previous.has(option.value);
+    select.append(option);
   }
   if (!select.selectedOptions.length && select.options.length) select.options[0].selected = true;
 }

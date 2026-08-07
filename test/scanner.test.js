@@ -8,6 +8,7 @@ import {
   classifyDevice,
   compareResults,
   interfaceInventory,
+  interfaceKind,
   loadResult,
   parseDarwinRoutes,
   parseLegacyLinuxRoutes,
@@ -45,6 +46,33 @@ test("eligible attached networks expose both local-segment and full-subnet choic
     ["10.20.17.0/24", "local-segment", false],
     ["10.20.16.0/20", "full-subnet", true],
   ]);
+});
+
+test("virtual container networks are excluded from scan targets by default", () => {
+  const interfaces = [
+    interfaceRecord,
+    { ...interfaceRecord, interface: "docker0", kind: "virtual", address: "172.17.0.1", network: "172.17.0.0/16", netmask: "255.255.0.0" },
+    { ...interfaceRecord, interface: "br-123456", kind: "virtual", address: "172.18.0.1", network: "172.18.0.0/16", netmask: "255.255.0.0" },
+  ];
+  assert.deepEqual(targetOptions(interfaces).map((option) => option.cidr), ["192.168.1.0/24"]);
+});
+
+test("virtual container networks can be explicitly included", () => {
+  const interfaces = [
+    interfaceRecord,
+    { ...interfaceRecord, interface: "docker0", kind: "virtual", address: "172.17.0.1", network: "172.17.0.0/24", netmask: "255.255.255.0" },
+  ];
+  assert.deepEqual(targetOptions(interfaces, { includeVirtual: true }).map((option) => option.cidr), [
+    "192.168.1.0/24",
+    "172.17.0.0/24",
+  ]);
+});
+
+test("container and common Wi-Fi interface names are classified correctly", () => {
+  for (const name of ["docker0", "br-deadbeef", "cni0", "podman0", "kube-ipvs0", "veth1234"]) {
+    assert.equal(interfaceKind(name), "virtual");
+  }
+  assert.equal(interfaceKind("wlp2s0"), "wireless");
 });
 
 test("interface inventory converts OS records and classifies the link", () => {
