@@ -435,4 +435,4 @@ Security reports should avoid posting sensitive network inventories, exported sc
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+AGPLv3. See [LICENSE](LICENSE).
